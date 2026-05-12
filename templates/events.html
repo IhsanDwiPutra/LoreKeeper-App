@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoreKeeper – Timeline Event</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    /* ---- Timeline List ---- */
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .timeline-list::before {
+      content: '';
+      position: absolute;
+      left: 18px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: var(--border);
+      z-index: 0;
+    }
+
+    .timeline-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .timeline-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      border: 2px solid var(--bg-base);
+      flex-shrink: 0;
+      margin-top: 4px;
+      margin-left: 12px;
+      box-shadow: 0 0 0 3px rgba(124, 106, 247, 0.2);
+    }
+
+    .timeline-content {
+      flex: 1;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color var(--transition);
+    }
+
+    .timeline-content:hover {
+      border-color: var(--accent);
+    }
+
+    .timeline-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .timeline-event-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .timeline-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background-color: rgba(61, 186, 140, 0.12);
+      color: var(--tag-loc);
+      border: 1px solid rgba(61, 186, 140, 0.25);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .trigger-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .trigger-text::before {
+      content: '⚡ ';
+    }
+
+    .timeline-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .timeline-actions button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px 7px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-muted);
+      transition: background var(--transition), color var(--transition);
+    }
+
+    .timeline-actions button:hover {
+      background-color: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .timeline-actions button.delete:hover {
+      color: var(--accent-danger);
+    }
+
+    /* Empty state for timeline */
+    .timeline-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      gap: 12px;
+    }
+
+    .timeline-empty .empty-icon {
+      font-size: 48px;
+      opacity: 0.4;
+    }
+
+    .timeline-empty p {
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== App Wrapper ===== -->
+  <div class="app-wrapper">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">📖</span>
+        <h1>LoreKeeper</h1>
+      </div>
+
+      <!-- Navigasi Utama -->
+      <div class="sidebar-section">
+        <p class="sidebar-section-label">Menu</p>
+        <ul class="sidebar-nav">
+          <li>
+            <a href="/">
+              <span class="nav-icon">🗂️</span> Semua Entri
+            </a>
+          </li>
+          <li>
+            <a href="/events" class="active">
+              <span class="nav-icon">📅</span> Timeline Event
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Filter Kategori -->
+      <div class="sidebar-section">
+        <p class="sidebar-section-label">Kategori Lore</p>
+        <ul class="sidebar-nav">
+          <li>
+            <a href="/?filter=Karakter">
+              <span class="dot dot-char"></span> Karakter
+            </a>
+          </li>
+          <li>
+            <a href="/?filter=Lokasi">
+              <span class="dot dot-loc"></span> Lokasi
+            </a>
+          </li>
+          <li>
+            <a href="/?filter=Item">
+              <span class="dot dot-item"></span> Item
+            </a>
+          </li>
+          <li>
+            <a href="/?filter=Misteri">
+              <span class="dot dot-mystery"></span> Misteri
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <div class="main-content">
+
+      <!-- Top Bar -->
+      <header class="topbar">
+        <span class="topbar-title">Timeline Event</span>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="window.location.href='/api/export'" aria-label="Export data ke JSON">
+            ⬇ Export to Game (JSON)
+          </button>
+          <button class="btn btn-primary" onclick="openModal()" aria-label="Tambah event baru">
+            ＋ Tambah Event
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-area">
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <div class="stat-label">Total Event</div>
+            <div class="stat-value" id="stat-total">–</div>
+            <div class="stat-sub">semua timeline event</div>
+          </div>
+        </div>
+
+        <!-- Section Header -->
+        <div class="section-header">
+          <h2>Daftar Timeline Event</h2>
+          <span id="event-count" style="font-size:13px; color: var(--text-muted);"></span>
+        </div>
+
+        <!-- Timeline List -->
+        <div class="timeline-list" id="timeline-list">
+          <!-- Event rows dirender oleh JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="timeline-empty" id="empty-state" style="display:none;">
+          <span class="empty-icon">📅</span>
+          <p>Belum ada timeline event. Mulai tambahkan event pertama!</p>
+          <button class="btn btn-primary" onclick="openModal()">Tambah Event Pertama</button>
+        </div>
+
+      </main>
+    </div><!-- /.main-content -->
+  </div><!-- /.app-wrapper -->
+
+
+  <!-- ===== Modal Tambah / Edit Event ===== -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-heading">Tambah Event</h3>
+        <button class="modal-close" onclick="closeModal()" aria-label="Tutup modal">✕</button>
+      </div>
+
+      <form id="event-form" onsubmit="handleFormSubmit(event)" novalidate>
+        <input type="hidden" id="form-event-id" value="" />
+
+        <div class="form-group">
+          <label for="form-event-name">Nama Event <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="form-event-name"
+            placeholder="Contoh: Lampu Lorong Padam"
+            required
+            maxlength="200"
+          />
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label for="form-location">Lokasi <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="form-location"
+            placeholder="Contoh: Lorong Bawah Tanah"
+            required
+            maxlength="200"
+          />
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label for="form-trigger">Kondisi Trigger <span aria-hidden="true">*</span></label>
+          <textarea
+            id="form-trigger"
+            placeholder="Contoh: Has_Rusty_Key == true"
+            required
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" id="form-submit-btn">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===== Toast Container ===== -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+
+  <script>
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    let allEvents = [];
+
+    // -----------------------------------------------------------------------
+    // Utility – XSS safety
+    // -----------------------------------------------------------------------
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // -----------------------------------------------------------------------
+    // Render helpers
+    // -----------------------------------------------------------------------
+    function renderTimeline() {
+      const list  = document.getElementById('timeline-list');
+      const empty = document.getElementById('empty-state');
+      const count = document.getElementById('event-count');
+
+      if (allEvents.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'flex';
+        count.textContent = '';
+        return;
+      }
+
+      empty.style.display = 'none';
+      count.textContent = `${allEvents.length} event`;
+
+      list.innerHTML = allEvents.map(ev => `
+        <div class="timeline-row">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-info">
+              <span class="timeline-event-name">${escHtml(ev.event_name)}</span>
+              <div class="timeline-meta">
+                <span class="location-badge">📍 ${escHtml(ev.location)}</span>
+                <span class="trigger-text">${escHtml(ev.trigger_condition)}</span>
+              </div>
+            </div>
+            <div class="timeline-actions">
+              <button onclick="openEditModal(${ev.id})" title="Edit" aria-label="Edit event">✏️</button>
+              <button class="delete" onclick="confirmDelete(${ev.id}, '${escHtml(ev.event_name)}')"
+                title="Hapus" aria-label="Hapus event">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = allEvents.length;
+    }
+
+    // -----------------------------------------------------------------------
+    // API helpers
+    // -----------------------------------------------------------------------
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      return data;
+    }
+
+    async function loadEvents() {
+      try {
+        allEvents = await apiFetch('/api/events');
+        updateStats();
+        renderTimeline();
+      } catch (err) {
+        showToast('Gagal memuat data: ' + err.message, 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Modal
+    // -----------------------------------------------------------------------
+    function openModal() {
+      document.getElementById('modal-heading').textContent   = 'Tambah Event';
+      document.getElementById('form-submit-btn').textContent = 'Simpan';
+      document.getElementById('form-event-id').value         = '';
+      document.getElementById('event-form').reset();
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('form-event-name').focus();
+    }
+
+    function openEditModal(id) {
+      const ev = allEvents.find(e => e.id === id);
+      if (!ev) return;
+
+      document.getElementById('modal-heading').textContent   = 'Edit Event';
+      document.getElementById('form-submit-btn').textContent = 'Perbarui';
+      document.getElementById('form-event-id').value         = ev.id;
+      document.getElementById('form-event-name').value       = ev.event_name;
+      document.getElementById('form-location').value         = ev.location;
+      document.getElementById('form-trigger').value          = ev.trigger_condition;
+
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('form-event-name').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('modal-overlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // -----------------------------------------------------------------------
+    // Form Submit – POST (create) or PUT (update)
+    // -----------------------------------------------------------------------
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const event_name        = document.getElementById('form-event-name').value.trim();
+      const location          = document.getElementById('form-location').value.trim();
+      const trigger_condition = document.getElementById('form-trigger').value.trim();
+      const id                = document.getElementById('form-event-id').value;
+
+      if (!event_name || !location || !trigger_condition) {
+        showToast('Semua field wajib diisi.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('form-submit-btn');
+      submitBtn.disabled = true;
+
+      try {
+        if (id) {
+          await apiFetch(`/api/events/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ event_name, location, trigger_condition }),
+          });
+          showToast(`Event "${event_name}" berhasil diperbarui.`, 'success');
+        } else {
+          await apiFetch('/api/events', {
+            method: 'POST',
+            body: JSON.stringify({ event_name, location, trigger_condition }),
+          });
+          showToast(`Event "${event_name}" berhasil ditambahkan.`, 'success');
+        }
+
+        closeModal();
+        await loadEvents();
+      } catch (err) {
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Delete – DELETE /api/events/<id>
+    // -----------------------------------------------------------------------
+    async function confirmDelete(id, name) {
+      if (!confirm(`Hapus event "${name}"?`)) return;
+      try {
+        await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
+        showToast(`Event "${name}" berhasil dihapus.`, 'success');
+        await loadEvents();
+      } catch (err) {
+        showToast('Gagal menghapus: ' + err.message, 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Toast
+    // -----------------------------------------------------------------------
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast     = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
+
+    // -----------------------------------------------------------------------
+    // Init
+    // -----------------------------------------------------------------------
+    loadEvents();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoreKeeper – Game Lore Manager</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- ===== App Wrapper ===== -->
+  <div class="app-wrapper">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">📖</span>
+        <h1>LoreKeeper</h1>
+      </div>
+
+      <!-- Navigasi Utama -->
+      <div class="sidebar-section">
+        <p class="sidebar-section-label">Menu</p>
+        <ul class="sidebar-nav">
+          <li>
+            <a href="#" class="active" data-filter="all" onclick="filterCategory('all', this)">
+              <span class="nav-icon">🗂️</span> Semua Entri
+            </a>
+          </li>
+          <li>
+            <a href="/events">
+              <span class="nav-icon">📅</span> Timeline Event
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Filter Kategori -->
+      <div class="sidebar-section">
+        <p class="sidebar-section-label">Kategori Lore</p>
+        <ul class="sidebar-nav">
+          <li>
+            <a href="#" data-filter="Karakter" onclick="filterCategory('Karakter', this)">
+              <span class="dot dot-char"></span> Karakter
+            </a>
+          </li>
+          <li>
+            <a href="#" data-filter="Lokasi" onclick="filterCategory('Lokasi', this)">
+              <span class="dot dot-loc"></span> Lokasi
+            </a>
+          </li>
+          <li>
+            <a href="#" data-filter="Item" onclick="filterCategory('Item', this)">
+              <span class="dot dot-item"></span> Item
+            </a>
+          </li>
+          <li>
+            <a href="#" data-filter="Misteri" onclick="filterCategory('Misteri', this)">
+              <span class="dot dot-mystery"></span> Misteri
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <div class="main-content">
+
+      <!-- Top Bar -->
+      <header class="topbar">
+        <span class="topbar-title" id="page-title">Semua Entri</span>
+        <div class="topbar-actions">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="search-input"
+              placeholder="Cari entri lore..."
+              oninput="handleSearch(this.value)"
+              aria-label="Cari entri lore"
+            />
+          </div>
+          <button class="btn btn-ghost" onclick="exportToGame()" aria-label="Export data ke JSON">
+            ⬇ Export to Game (JSON)
+          </button>
+          <button class="btn btn-primary" onclick="openModal()" aria-label="Tambah entri baru">
+            ＋ Tambah Entri
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-area">
+
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+          <div class="stat-card">
+            <div class="stat-label">Total Entri</div>
+            <div class="stat-value" id="stat-total">–</div>
+            <div class="stat-sub">semua kategori</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Karakter</div>
+            <div class="stat-value" id="stat-karakter">–</div>
+            <div class="stat-sub">entri karakter</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Lokasi</div>
+            <div class="stat-value" id="stat-lokasi">–</div>
+            <div class="stat-sub">entri lokasi</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Item</div>
+            <div class="stat-value" id="stat-item">–</div>
+            <div class="stat-sub">entri item</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Misteri</div>
+            <div class="stat-value" id="stat-misteri">–</div>
+            <div class="stat-sub">entri misteri</div>
+          </div>
+        </div>
+
+        <!-- Section Header -->
+        <div class="section-header">
+          <h2 id="section-label">Semua Entri Lore</h2>
+          <span id="entry-count" style="font-size:13px; color: var(--text-muted);"></span>
+        </div>
+
+        <!-- Lore Grid -->
+        <div class="lore-grid" id="lore-grid">
+          <!-- Kartu lore akan dirender oleh JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display:none;">
+          <span class="empty-icon">📭</span>
+          <p>Belum ada entri lore di sini.</p>
+          <button class="btn btn-primary" onclick="openModal()">Tambah Entri Pertama</button>
+        </div>
+
+      </main>
+    </div><!-- /.main-content -->
+  </div><!-- /.app-wrapper -->
+
+
+  <!-- ===== Modal Tambah / Edit Entri ===== -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-heading">Tambah Entri Lore</h3>
+        <button class="modal-close" onclick="closeModal()" aria-label="Tutup modal">✕</button>
+      </div>
+
+      <form id="lore-form" onsubmit="handleFormSubmit(event)" novalidate>
+        <input type="hidden" id="form-entry-id" value="" />
+
+        <div class="form-group">
+          <label for="form-title">Judul <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="form-title"
+            placeholder="Contoh: Pedang Cahaya Abadi"
+            required
+            maxlength="200"
+          />
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label for="form-category">Kategori <span aria-hidden="true">*</span></label>
+          <select id="form-category" required>
+            <option value="" disabled selected>Pilih kategori…</option>
+            <option value="Karakter">Karakter</option>
+            <option value="Lokasi">Lokasi</option>
+            <option value="Item">Item</option>
+            <option value="Misteri">Misteri</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label for="form-content">Isi Cerita <span aria-hidden="true">*</span></label>
+          <textarea
+            id="form-content"
+            placeholder="Tulis deskripsi, latar belakang, atau catatan lore di sini…"
+            required
+            rows="5"
+          ></textarea>
+        </div>
+
+        <!-- Media Section -->
+        <div class="media-section" style="margin-top:14px;">
+          <div class="media-section-label">Media (Opsional)</div>
+
+          <div class="form-group" style="margin-top:10px;">
+            <label for="form-image">Gambar Referensi (JPG/PNG)</label>
+            <input
+              type="file"
+              id="form-image"
+              accept="image/jpeg,image/png"
+              class="file-input"
+              onchange="handleImagePreview(this)"
+            />
+            <!-- Inline preview for existing / newly selected image -->
+            <div id="image-preview-wrap" class="image-preview-wrap" style="display:none;">
+              <img id="image-preview" src="" alt="Preview gambar" class="image-preview-thumb" />
+              <button type="button" class="remove-media-btn" onclick="clearImageInput()" aria-label="Hapus gambar">✕</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:10px;">
+            <label for="form-audio">Audio Efek Suara (MP3/WAV)</label>
+            <input
+              type="file"
+              id="form-audio"
+              accept="audio/mpeg,audio/wav"
+              class="file-input"
+            />
+            <div id="audio-name-wrap" class="audio-name-wrap" style="display:none;">
+              <span id="audio-selected-name" class="audio-selected-name"></span>
+              <button type="button" class="remove-media-btn" onclick="clearAudioInput()" aria-label="Hapus audio">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" id="form-submit-btn">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===== Toast Container ===== -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+
+  <!-- ===== Inline Script (placeholder – akan diganti Fetch API di Task 5) ===== -->
+  <script>
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    let allEntries   = [];   // semua data dari backend (diisi Task 5)
+    let activeFilter = 'all';
+    let searchQuery  = '';
+
+    // -----------------------------------------------------------------------
+    // Render helpers
+    // -----------------------------------------------------------------------
+    function getCategoryClass(cat) {
+      const map = {
+        'Karakter': 'tag-karakter',
+        'Lokasi':   'tag-lokasi',
+        'Item':     'tag-item',
+        'Misteri':  'tag-misteri',
+      };
+      return map[cat] || 'tag-item';
+    }
+
+    function renderCard(entry) {
+      const imagePart = entry.image_path
+        ? `<div class="card-media-image" onclick="event.stopPropagation()">
+             <img src="/static/${escHtml(entry.image_path)}" alt="Gambar: ${escHtml(entry.title)}" class="card-thumbnail" />
+           </div>`
+        : '';
+
+      const audioPart = entry.audio_path
+        ? `<div class="card-media-audio" onclick="event.stopPropagation()">
+             <audio controls class="card-audio-player" preload="none">
+               <source src="/static/${escHtml(entry.audio_path)}" />
+               Browser Anda tidak mendukung audio.
+             </audio>
+           </div>`
+        : '';
+
+      return `
+        <article class="lore-card" onclick="openEditModal(${entry.id})" role="button" tabindex="0"
+          onkeydown="if(event.key==='Enter') openEditModal(${entry.id})"
+          aria-label="Entri: ${escHtml(entry.title)}">
+          <div class="lore-card-header">
+            <span class="lore-card-title">${escHtml(entry.title)}</span>
+            <div class="lore-card-actions">
+              <button onclick="event.stopPropagation(); openEditModal(${entry.id})"
+                title="Edit" aria-label="Edit entri">✏️</button>
+              <button class="delete" onclick="event.stopPropagation(); confirmDelete(${entry.id}, '${escHtml(entry.title)}')"
+                title="Hapus" aria-label="Hapus entri">🗑️</button>
+            </div>
+          </div>
+          <p class="lore-card-body">${escHtml(entry.content)}</p>
+          ${imagePart}
+          ${audioPart}
+          <div class="lore-card-footer">
+            <span class="tag ${getCategoryClass(entry.category)}">${escHtml(entry.category)}</span>
+            <span class="card-id">#${entry.id}</span>
+          </div>
+        </article>`;
+    }
+
+    function renderGrid() {
+      const grid  = document.getElementById('lore-grid');
+      const empty = document.getElementById('empty-state');
+
+      let filtered = allEntries;
+
+      if (activeFilter !== 'all') {
+        filtered = filtered.filter(e => e.category === activeFilter);
+      }
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(e =>
+          e.title.toLowerCase().includes(q) ||
+          e.content.toLowerCase().includes(q) ||
+          e.category.toLowerCase().includes(q)
+        );
+      }
+
+      document.getElementById('entry-count').textContent =
+        filtered.length > 0 ? `${filtered.length} entri` : '';
+
+      if (filtered.length === 0) {
+        grid.innerHTML  = '';
+        empty.style.display = 'flex';
+      } else {
+        grid.innerHTML  = filtered.map(renderCard).join('');
+        empty.style.display = 'none';
+      }
+    }
+
+    function updateStats() {
+      const count = cat => allEntries.filter(e => e.category === cat).length;
+      document.getElementById('stat-total').textContent    = allEntries.length;
+      document.getElementById('stat-karakter').textContent = count('Karakter');
+      document.getElementById('stat-lokasi').textContent   = count('Lokasi');
+      document.getElementById('stat-item').textContent     = count('Item');
+      document.getElementById('stat-misteri').textContent  = count('Misteri');
+    }
+
+    // -----------------------------------------------------------------------
+    // Filter & Search
+    // -----------------------------------------------------------------------
+    function filterCategory(filter, el) {
+      activeFilter = filter;
+      searchQuery  = '';
+      document.getElementById('search-input').value = '';
+
+      // Update active link
+      document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+      if (el) el.classList.add('active');
+
+      // Update page title
+      const titles = {
+        'all':      'Semua Entri',
+        'Karakter': 'Karakter',
+        'Lokasi':   'Lokasi',
+        'Item':     'Item',
+        'Misteri':  'Misteri',
+        'Timeline': 'Timeline Event',
+      };
+      document.getElementById('page-title').textContent    = titles[filter] || filter;
+      document.getElementById('section-label').textContent =
+        filter === 'all' ? 'Semua Entri Lore' : `Entri – ${titles[filter] || filter}`;
+
+      renderGrid();
+    }
+
+    function handleSearch(value) {
+      searchQuery = value.trim();
+      renderGrid();
+    }
+
+    // -----------------------------------------------------------------------
+    // Modal
+    // -----------------------------------------------------------------------
+    function openModal() {
+      document.getElementById('modal-heading').textContent   = 'Tambah Entri Lore';
+      document.getElementById('form-submit-btn').textContent = 'Simpan';
+      document.getElementById('form-entry-id').value         = '';
+      document.getElementById('lore-form').reset();
+      resetMediaPreviews();
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('form-title').focus();
+    }
+
+    function openEditModal(id) {
+      const entry = allEntries.find(e => e.id === id);
+      if (!entry) return;
+
+      document.getElementById('modal-heading').textContent   = 'Edit Entri Lore';
+      document.getElementById('form-submit-btn').textContent = 'Perbarui';
+      document.getElementById('form-entry-id').value         = entry.id;
+      document.getElementById('form-title').value            = entry.title;
+      document.getElementById('form-category').value         = entry.category;
+      document.getElementById('form-content').value          = entry.content;
+
+      // Reset file inputs
+      document.getElementById('form-image').value = '';
+      document.getElementById('form-audio').value = '';
+
+      // Show existing image preview if available
+      const previewWrap = document.getElementById('image-preview-wrap');
+      const previewImg  = document.getElementById('image-preview');
+      if (entry.image_path) {
+        previewImg.src = `/static/${entry.image_path}`;
+        previewWrap.style.display = 'flex';
+      } else {
+        previewWrap.style.display = 'none';
+        previewImg.src = '';
+      }
+
+      // Show existing audio name if available
+      const audioWrap = document.getElementById('audio-name-wrap');
+      const audioName = document.getElementById('audio-selected-name');
+      if (entry.audio_path) {
+        audioName.textContent = entry.audio_path.split('/').pop();
+        audioWrap.style.display = 'flex';
+      } else {
+        audioWrap.style.display = 'none';
+        audioName.textContent = '';
+      }
+
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('form-title').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('modal-overlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // -----------------------------------------------------------------------
+    // API helpers
+    // -----------------------------------------------------------------------
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      return data;
+    }
+
+    async function loadEntries() {
+      try {
+        allEntries = await apiFetch('/api/lore');
+        updateStats();
+        renderGrid();
+      } catch (err) {
+        showToast('Gagal memuat data: ' + err.message, 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Form Submit – POST (create) or PUT (update), then optional file upload
+    // -----------------------------------------------------------------------
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const title    = document.getElementById('form-title').value.trim();
+      const category = document.getElementById('form-category').value;
+      const content  = document.getElementById('form-content').value.trim();
+      const id       = document.getElementById('form-entry-id').value;
+
+      if (!title || !category || !content) {
+        showToast('Semua field wajib diisi.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('form-submit-btn');
+      submitBtn.disabled = true;
+
+      try {
+        let savedEntry;
+        if (id) {
+          // Update existing entry
+          savedEntry = await apiFetch(`/api/lore/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ title, category, content }),
+          });
+          showToast(`Entri "${title}" berhasil diperbarui.`, 'success');
+        } else {
+          // Create new entry
+          savedEntry = await apiFetch('/api/lore', {
+            method: 'POST',
+            body: JSON.stringify({ title, category, content }),
+          });
+          showToast(`Entri "${title}" berhasil ditambahkan.`, 'success');
+        }
+
+        // Upload media files if any were selected
+        const imageFile = document.getElementById('form-image').files[0];
+        const audioFile = document.getElementById('form-audio').files[0];
+
+        if (imageFile || audioFile) {
+          const formData = new FormData();
+          if (imageFile) formData.append('image', imageFile);
+          if (audioFile) formData.append('audio', audioFile);
+
+          try {
+            const uploadRes = await fetch(`/api/lore/${savedEntry.id}/upload`, {
+              method: 'POST',
+              body: formData,
+            });
+            if (!uploadRes.ok) {
+              const errData = await uploadRes.json().catch(() => ({}));
+              showToast('Gagal upload media: ' + (errData.error || `HTTP ${uploadRes.status}`), 'error');
+            } else {
+              showToast('Media berhasil diunggah.', 'success');
+            }
+          } catch (uploadErr) {
+            showToast('Gagal upload media: ' + uploadErr.message, 'error');
+          }
+        }
+
+        closeModal();
+        await loadEntries();
+      } catch (err) {
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Media preview helpers
+    // -----------------------------------------------------------------------
+    function handleImagePreview(input) {
+      const wrap = document.getElementById('image-preview-wrap');
+      const img  = document.getElementById('image-preview');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          img.src = e.target.result;
+          wrap.style.display = 'flex';
+        };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        wrap.style.display = 'none';
+        img.src = '';
+      }
+    }
+
+    function clearImageInput() {
+      document.getElementById('form-image').value = '';
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-preview-wrap').style.display = 'none';
+    }
+
+    function clearAudioInput() {
+      document.getElementById('form-audio').value = '';
+      document.getElementById('audio-selected-name').textContent = '';
+      document.getElementById('audio-name-wrap').style.display = 'none';
+    }
+
+    function resetMediaPreviews() {
+      clearImageInput();
+      clearAudioInput();
+    }
+
+    // Auto-show audio filename when a file is selected
+    document.getElementById('form-audio').addEventListener('change', function() {
+      const wrap = document.getElementById('audio-name-wrap');
+      const name = document.getElementById('audio-selected-name');
+      if (this.files && this.files[0]) {
+        name.textContent = this.files[0].name;
+        wrap.style.display = 'flex';
+      } else {
+        wrap.style.display = 'none';
+        name.textContent = '';
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Delete – DELETE /api/lore/<id>
+    // -----------------------------------------------------------------------
+    async function confirmDelete(id, title) {
+      if (!confirm(`Hapus entri "${title}"?`)) return;
+      try {
+        await apiFetch(`/api/lore/${id}`, { method: 'DELETE' });
+        showToast(`Entri "${title}" berhasil dihapus.`, 'success');
+        await loadEntries();
+      } catch (err) {
+        showToast('Gagal menghapus: ' + err.message, 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Toast
+    // -----------------------------------------------------------------------
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast     = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
+
+    // -----------------------------------------------------------------------
+    // Utility
+    // -----------------------------------------------------------------------
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // -----------------------------------------------------------------------
+    // Export to Game (JSON)
+    // -----------------------------------------------------------------------
+    function exportToGame() {
+      showToast('Mengekspor data...', 'info');
+      window.location.href = '/api/export';
+    }
+
+    // -----------------------------------------------------------------------
+    // Init – muat data dari backend saat halaman dibuka
+    // -----------------------------------------------------------------------
+    loadEntries();
+  </script>
+
+</body>
+</html>
