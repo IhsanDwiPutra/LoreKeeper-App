@@ -3,8 +3,9 @@ database.py – SQLite schema initialisation for LoreKeeper App.
 
 Tables
 ------
-LoreEntry  : catatan lore (judul, kategori, isi cerita)
-GameEvent  : event timeline (nama event, lokasi, kondisi trigger)
+LoreEntry    : catatan lore (judul, kategori, isi cerita)
+GameEvent    : event timeline (nama event, lokasi, kondisi trigger)
+GameVariable : variabel status global pemain (nama, tipe data, nilai default)
 """
 
 import sqlite3
@@ -27,6 +28,13 @@ CREATE TABLE IF NOT EXISTS GameEvent (
     event_name        TEXT NOT NULL,
     location          TEXT NOT NULL,
     trigger_condition TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS GameVariable (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT    NOT NULL UNIQUE,
+    var_type      TEXT    NOT NULL,
+    default_value TEXT    NOT NULL
 );
 """
 

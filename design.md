@@ -25,6 +25,16 @@ Tabel `GameEvent`:
 - location (String)
 - trigger_condition (String)
 
+## Tambahan Struktur Database untuk Variabel
+Tabel `GameVariable`:
+- id (Integer, Primary Key)
+- name (String, Unique)
+- var_type (String)
+- default_value (String)
+
+## Update Endpoint Export
+- Endpoint `GET /api/export` harus diperbarui agar ikut menarik seluruh data dari tabel `GameVariable` dan menyisipkannya ke dalam struktur response JSON dengan key `"game_variables"`.
+
 ## Tambahan Endpoint API (Export)
 - `GET /api/export` : Mengambil seluruh isi tabel `LoreEntry` dan `GameEvent`, menggabungkannya ke dalam satu format JSON terpusat, dan mengembalikannya sebagai file unduhan (attachment).
 

@@ -23,3 +23,7 @@ Aplikasi web internal untuk mencatat dan mengorganisir elemen cerita dan event (
    - Fungsikan menu "Timeline Event" di sidebar agar membuka halaman khusus pengelola event.
    - Pengguna dapat melakukan Create, Read, Update, dan Delete data Event.
    - Form input Event harus memiliki field: "Nama Event" (contoh: Lampu Lorong Padam), "Lokasi" (teks tempat kejadian), dan "Kondisi Trigger" (contoh: Has_Rusty_Key == true).
+7. **Manajemen Game Variables (Player State):**
+   - Tambahkan menu "Game Variables" di sidebar untuk mengelola status global atau inventaris pemain.
+   - Pengguna dapat melakukan Create, Read, Update, dan Delete (CRUD) data variabel.
+   - Setiap variabel wajib memiliki atribut: "Nama Variabel" (contoh: Player_Sanity, Has_Rusty_Key), "Tipe Data" (pilihan dropdown: Integer, Boolean, String), dan "Nilai Default" (contoh: 100, false).

@@ -342,6 +342,130 @@ def delete_event(event_id):
 
 
 # ---------------------------------------------------------------------------
+# GameVariable Page Route
+# ---------------------------------------------------------------------------
+
+@app.route("/variables")
+def variables():
+    return render_template("variables.html")
+
+
+# ---------------------------------------------------------------------------
+# GameVariable CRUD Endpoints
+# ---------------------------------------------------------------------------
+
+@app.route("/api/variables", methods=["GET"])
+def get_all_variables():
+    """Ambil semua GameVariable, diurutkan berdasarkan id."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM GameVariable ORDER BY id"
+        ).fetchall()
+    return jsonify([dict(row) for row in rows]), 200
+
+
+@app.route("/api/variables/<int:variable_id>", methods=["GET"])
+def get_variable(variable_id):
+    """Ambil satu GameVariable berdasarkan id."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM GameVariable WHERE id = ?", (variable_id,)
+        ).fetchone()
+    if row is None:
+        return jsonify({"error": "GameVariable tidak ditemukan."}), 404
+    return jsonify(dict(row)), 200
+
+
+@app.route("/api/variables", methods=["POST"])
+def create_variable():
+    """Buat GameVariable baru. Body JSON: {name, var_type, default_value}."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Request body harus berupa JSON."}), 400
+
+    name          = (data.get("name") or "").strip()
+    var_type      = (data.get("var_type") or "").strip()
+    default_value = (data.get("default_value") or "").strip()
+
+    if not name or not var_type or not default_value:
+        return jsonify({"error": "Field 'name', 'var_type', dan 'default_value' wajib diisi."}), 400
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.execute(
+                "INSERT INTO GameVariable (name, var_type, default_value) VALUES (?, ?, ?)",
+                (name, var_type, default_value),
+            )
+            new_id = cursor.lastrowid
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM GameVariable WHERE id = ?", (new_id,)
+            ).fetchone()
+    except Exception as exc:
+        if "UNIQUE constraint failed" in str(exc):
+            return jsonify({"error": f"Nama variabel '{name}' sudah digunakan."}), 409
+        raise
+
+    return jsonify(dict(row)), 201
+
+
+@app.route("/api/variables/<int:variable_id>", methods=["PUT"])
+def update_variable(variable_id):
+    """Update GameVariable. Body JSON: {name?, var_type?, default_value?}."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Request body harus berupa JSON."}), 400
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM GameVariable WHERE id = ?", (variable_id,)
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "GameVariable tidak ditemukan."}), 404
+
+        existing = dict(row)
+        name          = (data.get("name") or existing["name"]).strip()
+        var_type      = (data.get("var_type") or existing["var_type"]).strip()
+        default_value = (data.get("default_value") or existing["default_value"]).strip()
+
+        if not name or not var_type or not default_value:
+            return jsonify({"error": "Field 'name', 'var_type', dan 'default_value' tidak boleh kosong."}), 400
+
+        try:
+            conn.execute(
+                "UPDATE GameVariable SET name = ?, var_type = ?, default_value = ? WHERE id = ?",
+                (name, var_type, default_value, variable_id),
+            )
+            conn.commit()
+        except Exception as exc:
+            if "UNIQUE constraint failed" in str(exc):
+                return jsonify({"error": f"Nama variabel '{name}' sudah digunakan."}), 409
+            raise
+
+        updated = conn.execute(
+            "SELECT * FROM GameVariable WHERE id = ?", (variable_id,)
+        ).fetchone()
+
+    return jsonify(dict(updated)), 200
+
+
+@app.route("/api/variables/<int:variable_id>", methods=["DELETE"])
+def delete_variable(variable_id):
+    """Hapus GameVariable berdasarkan id."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM GameVariable WHERE id = ?", (variable_id,)
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "GameVariable tidak ditemukan."}), 404
+
+        conn.execute("DELETE FROM GameVariable WHERE id = ?", (variable_id,))
+        conn.commit()
+
+    return jsonify({"message": f"GameVariable {variable_id} berhasil dihapus."}), 200
+
+
+# ---------------------------------------------------------------------------
 # Export Endpoint
 # ---------------------------------------------------------------------------
 
@@ -361,11 +485,15 @@ def export_data():
         event_rows = conn.execute(
             "SELECT * FROM GameEvent ORDER BY id"
         ).fetchall()
+        var_rows = conn.execute(
+            "SELECT * FROM GameVariable ORDER BY id"
+        ).fetchall()
 
     payload = {
         "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "lore_entries": [dict(row) for row in lore_rows],
         "game_events": [dict(row) for row in event_rows],
+        "game_variables": [dict(row) for row in var_rows],
     }
 
     json_str = json.dumps(payload, indent=2, ensure_ascii=False)

@@ -13,3 +13,7 @@
 - [x] Task 11: Buat file `templates/events.html` dan hubungkan navigasi sidebar "Timeline Event" agar mengarah ke halaman ini.
 - [x] Task 12: Buat logika endpoint backend (GET, POST, PUT, DELETE) di `app.py` untuk mengelola data tabel `GameEvent`.
 - [x] Task 13: Pastikan data `GameEvent` yang baru diinput berhasil ter-export dan masuk ke dalam array `"game_events"` pada fitur Export JSON.
+- [x] Task 14: Perbarui skema database SQLite di `database.py` untuk membuat tabel `GameVariable`.
+- [x] Task 15: Buat endpoint backend (GET, POST, PUT, DELETE) di `app.py` untuk mengelola tabel `GameVariable`.
+- [x] Task 16: Buat halaman antarmuka `templates/variables.html` dengan tema gelap, dan aktifkan link-nya di sidebar kiri.
+- [x] Task 17: Modifikasi fungsi di endpoint `/api/export` agar data dari tabel `GameVariable` ikut dimasukkan ke dalam file JSON yang diunduh.
