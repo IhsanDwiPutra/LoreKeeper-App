@@ -241,96 +241,157 @@ def delete_lore(entry_id):
 # GameEvent CRUD Endpoints
 # ---------------------------------------------------------------------------
 
+def _get_event_with_conditions(conn, event_id: int) -> dict | None:
+    """
+    Ambil satu GameEvent beserta daftar kondisinya dari tabel EventCondition.
+    Kembalikan dict dengan key 'conditions' berisi list kondisi, atau None jika tidak ditemukan.
+    """
+    row = conn.execute(
+        "SELECT id, event_name, location FROM GameEvent WHERE id = ?", (event_id,)
+    ).fetchone()
+    if row is None:
+        return None
+
+    condition_rows = conn.execute(
+        "SELECT id, variable_name, operator, target_value "
+        "FROM EventCondition WHERE event_id = ? ORDER BY id",
+        (event_id,),
+    ).fetchall()
+
+    event = dict(row)
+    event["conditions"] = [dict(c) for c in condition_rows]
+    return event
+
+
 @app.route("/api/events", methods=["GET"])
 def get_all_events():
-    """Ambil semua GameEvent, diurutkan berdasarkan id."""
+    """Ambil semua GameEvent beserta kondisinya, diurutkan berdasarkan id."""
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT * FROM GameEvent ORDER BY id"
+        event_rows = conn.execute(
+            "SELECT id, event_name, location FROM GameEvent ORDER BY id"
         ).fetchall()
-    return jsonify([dict(row) for row in rows]), 200
+        result = []
+        for row in event_rows:
+            event = dict(row)
+            condition_rows = conn.execute(
+                "SELECT id, variable_name, operator, target_value "
+                "FROM EventCondition WHERE event_id = ? ORDER BY id",
+                (event["id"],),
+            ).fetchall()
+            event["conditions"] = [dict(c) for c in condition_rows]
+            result.append(event)
+    return jsonify(result), 200
 
 
 @app.route("/api/events/<int:event_id>", methods=["GET"])
 def get_event(event_id):
-    """Ambil satu GameEvent berdasarkan id."""
+    """Ambil satu GameEvent beserta kondisinya berdasarkan id."""
     with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM GameEvent WHERE id = ?", (event_id,)
-        ).fetchone()
-    if row is None:
+        event = _get_event_with_conditions(conn, event_id)
+    if event is None:
         return jsonify({"error": "GameEvent tidak ditemukan."}), 404
-    return jsonify(dict(row)), 200
+    return jsonify(event), 200
 
 
 @app.route("/api/events", methods=["POST"])
 def create_event():
-    """Buat GameEvent baru. Body JSON: {event_name, location, trigger_condition}."""
+    """
+    Buat GameEvent baru beserta kondisi-kondisinya dalam satu transaksi.
+    Body JSON: {event_name, location, conditions?: [{variable_name, operator, target_value}]}
+    """
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Request body harus berupa JSON."}), 400
 
-    event_name        = (data.get("event_name") or "").strip()
-    location          = (data.get("location") or "").strip()
-    trigger_condition = (data.get("trigger_condition") or "").strip()
+    event_name = (data.get("event_name") or "").strip()
+    location   = (data.get("location") or "").strip()
+    conditions = data.get("conditions") or []
 
-    if not event_name or not location or not trigger_condition:
-        return jsonify({"error": "Field 'event_name', 'location', dan 'trigger_condition' wajib diisi."}), 400
+    if not event_name or not location:
+        return jsonify({"error": "Field 'event_name' dan 'location' wajib diisi."}), 400
 
     with get_connection() as conn:
         cursor = conn.execute(
-            "INSERT INTO GameEvent (event_name, location, trigger_condition) VALUES (?, ?, ?)",
-            (event_name, location, trigger_condition),
+            "INSERT INTO GameEvent (event_name, location) VALUES (?, ?)",
+            (event_name, location),
         )
         new_id = cursor.lastrowid
-        conn.commit()
-        row = conn.execute(
-            "SELECT * FROM GameEvent WHERE id = ?", (new_id,)
-        ).fetchone()
 
-    return jsonify(dict(row)), 201
+        for cond in conditions:
+            variable_name = (cond.get("variable_name") or "").strip()
+            operator      = (cond.get("operator") or "").strip()
+            target_value  = (cond.get("target_value") or "").strip()
+            if variable_name and operator:
+                conn.execute(
+                    "INSERT INTO EventCondition (event_id, variable_name, operator, target_value) "
+                    "VALUES (?, ?, ?, ?)",
+                    (new_id, variable_name, operator, target_value),
+                )
+
+        conn.commit()
+        event = _get_event_with_conditions(conn, new_id)
+
+    return jsonify(event), 201
 
 
 @app.route("/api/events/<int:event_id>", methods=["PUT"])
 def update_event(event_id):
-    """Update GameEvent. Body JSON: {event_name?, location?, trigger_condition?}."""
+    """
+    Update GameEvent dan ganti semua kondisinya sekaligus.
+    Body JSON: {event_name?, location?, conditions?: [{variable_name, operator, target_value}]}
+    Semua EventCondition lama untuk event ini akan dihapus dan diganti dengan yang baru.
+    """
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Request body harus berupa JSON."}), 400
 
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM GameEvent WHERE id = ?", (event_id,)
+            "SELECT id, event_name, location FROM GameEvent WHERE id = ?", (event_id,)
         ).fetchone()
         if row is None:
             return jsonify({"error": "GameEvent tidak ditemukan."}), 404
 
         existing = dict(row)
-        event_name        = (data.get("event_name") or existing["event_name"]).strip()
-        location          = (data.get("location") or existing["location"]).strip()
-        trigger_condition = (data.get("trigger_condition") or existing["trigger_condition"]).strip()
+        event_name = (data.get("event_name") or existing["event_name"]).strip()
+        location   = (data.get("location") or existing["location"]).strip()
+        conditions = data.get("conditions") or []
 
-        if not event_name or not location or not trigger_condition:
-            return jsonify({"error": "Field 'event_name', 'location', dan 'trigger_condition' tidak boleh kosong."}), 400
+        if not event_name or not location:
+            return jsonify({"error": "Field 'event_name' dan 'location' tidak boleh kosong."}), 400
 
         conn.execute(
-            "UPDATE GameEvent SET event_name = ?, location = ?, trigger_condition = ? WHERE id = ?",
-            (event_name, location, trigger_condition, event_id),
+            "UPDATE GameEvent SET event_name = ?, location = ? WHERE id = ?",
+            (event_name, location, event_id),
         )
-        conn.commit()
-        updated = conn.execute(
-            "SELECT * FROM GameEvent WHERE id = ?", (event_id,)
-        ).fetchone()
 
-    return jsonify(dict(updated)), 200
+        # Hapus semua kondisi lama, lalu sisipkan yang baru
+        conn.execute(
+            "DELETE FROM EventCondition WHERE event_id = ?", (event_id,)
+        )
+        for cond in conditions:
+            variable_name = (cond.get("variable_name") or "").strip()
+            operator      = (cond.get("operator") or "").strip()
+            target_value  = (cond.get("target_value") or "").strip()
+            if variable_name and operator:
+                conn.execute(
+                    "INSERT INTO EventCondition (event_id, variable_name, operator, target_value) "
+                    "VALUES (?, ?, ?, ?)",
+                    (event_id, variable_name, operator, target_value),
+                )
+
+        conn.commit()
+        event = _get_event_with_conditions(conn, event_id)
+
+    return jsonify(event), 200
 
 
 @app.route("/api/events/<int:event_id>", methods=["DELETE"])
 def delete_event(event_id):
-    """Hapus GameEvent berdasarkan id."""
+    """Hapus GameEvent berdasarkan id. EventCondition terkait terhapus otomatis via CASCADE."""
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM GameEvent WHERE id = ?", (event_id,)
+            "SELECT id FROM GameEvent WHERE id = ?", (event_id,)
         ).fetchone()
         if row is None:
             return jsonify({"error": "GameEvent tidak ditemukan."}), 404
@@ -483,16 +544,28 @@ def export_data():
             "SELECT * FROM LoreEntry ORDER BY id"
         ).fetchall()
         event_rows = conn.execute(
-            "SELECT * FROM GameEvent ORDER BY id"
+            "SELECT id, event_name, location FROM GameEvent ORDER BY id"
         ).fetchall()
         var_rows = conn.execute(
             "SELECT * FROM GameVariable ORDER BY id"
         ).fetchall()
 
+        # Sertakan kondisi untuk setiap event
+        game_events = []
+        for row in event_rows:
+            event = dict(row)
+            condition_rows = conn.execute(
+                "SELECT id, variable_name, operator, target_value "
+                "FROM EventCondition WHERE event_id = ? ORDER BY id",
+                (event["id"],),
+            ).fetchall()
+            event["conditions"] = [dict(c) for c in condition_rows]
+            game_events.append(event)
+
     payload = {
         "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "lore_entries": [dict(row) for row in lore_rows],
-        "game_events": [dict(row) for row in event_rows],
+        "game_events": game_events,
         "game_variables": [dict(row) for row in var_rows],
     }
 

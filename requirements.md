@@ -27,3 +27,10 @@ Aplikasi web internal untuk mencatat dan mengorganisir elemen cerita dan event (
    - Tambahkan menu "Game Variables" di sidebar untuk mengelola status global atau inventaris pemain.
    - Pengguna dapat melakukan Create, Read, Update, dan Delete (CRUD) data variabel.
    - Setiap variabel wajib memiliki atribut: "Nama Variabel" (contoh: Player_Sanity, Has_Rusty_Key), "Tipe Data" (pilihan dropdown: Integer, Boolean, String), dan "Nilai Default" (contoh: 100, false).
+8. **Smart Trigger Builder (Relasi Event dan Variabel):**
+   - Modifikasi form "Kondisi Trigger" pada menu Timeline Event. Jangan gunakan input teks bebas (*free text*).
+   - Ubah menjadi kombinasi 3 input: 
+     1. Dropdown "Pilih Variabel" (mengambil data otomatis dari tabel `GameVariable`).
+     2. Dropdown "Operator" (pilihan: ==, !=, >, <, >=, <=).
+     3. Input Teks "Nilai Target" (contoh: 50, true, false).
+   - Pengguna bisa menambahkan lebih dari satu kondisi untuk satu event (menggunakan logika AND).

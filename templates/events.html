@@ -67,7 +67,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .timeline-event-name {
@@ -98,14 +98,42 @@
       letter-spacing: 0.4px;
     }
 
-    .trigger-text {
+    /* Condition pills row */
+    .conditions-display {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .condition-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background-color: rgba(124, 106, 247, 0.12);
+      color: var(--accent-hover);
+      border: 1px solid rgba(124, 106, 247, 0.3);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+
+    .condition-and-sep {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      padding: 0 2px;
+    }
+
+    .no-conditions-label {
       font-size: 12px;
       color: var(--text-muted);
       font-style: italic;
-    }
-
-    .trigger-text::before {
-      content: '⚡ ';
     }
 
     .timeline-actions {
@@ -153,6 +181,121 @@
 
     .timeline-empty p {
       font-size: 14px;
+    }
+
+    /* ---- Smart Trigger Builder ---- */
+    .conditions-section-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .conditions-section-label .and-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background-color: rgba(124, 106, 247, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(124, 106, 247, 0.3);
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+
+    .conditions-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .condition-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .condition-row select,
+    .condition-row input[type="text"] {
+      background-color: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color var(--transition);
+      font-family: inherit;
+    }
+
+    .condition-row select:focus,
+    .condition-row input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .condition-row select option {
+      background-color: var(--bg-elevated);
+    }
+
+    .condition-row .select-variable {
+      flex: 2;
+      min-width: 0;
+    }
+
+    .condition-row .select-operator {
+      flex: 0 0 80px;
+    }
+
+    .condition-row .input-value {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .condition-row .remove-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: var(--radius);
+      flex-shrink: 0;
+      transition: color var(--transition), background var(--transition), border-color var(--transition);
+      line-height: 1;
+    }
+
+    .condition-row .remove-btn:hover {
+      color: var(--accent-danger);
+      background-color: rgba(224, 92, 110, 0.1);
+      border-color: rgba(224, 92, 110, 0.3);
+    }
+
+    .add-condition-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color var(--transition), color var(--transition), background var(--transition);
+      margin-top: 4px;
+    }
+
+    .add-condition-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background-color: rgba(124, 106, 247, 0.06);
     }
   </style>
 </head>
@@ -302,14 +445,17 @@
           />
         </div>
 
+        <!-- Smart Trigger Builder -->
         <div class="form-group" style="margin-top:14px;">
-          <label for="form-trigger">Kondisi Trigger <span aria-hidden="true">*</span></label>
-          <textarea
-            id="form-trigger"
-            placeholder="Contoh: Has_Rusty_Key == true"
-            required
-            rows="3"
-          ></textarea>
+          <div class="conditions-section-label">
+            Kondisi Trigger <span class="and-badge">AND</span>
+          </div>
+          <div class="conditions-container" id="conditions-container">
+            <!-- Condition rows injected by JS -->
+          </div>
+          <button type="button" class="add-condition-btn" onclick="addConditionRow()">
+            ＋ Tambah Kondisi
+          </button>
         </div>
 
         <div class="form-actions" style="margin-top:20px;">
@@ -329,7 +475,8 @@
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
-    let allEvents = [];
+    let allEvents    = [];
+    let allVariables = [];
 
     // -----------------------------------------------------------------------
     // Utility – XSS safety
@@ -344,8 +491,100 @@
     }
 
     // -----------------------------------------------------------------------
+    // Condition row helpers
+    // -----------------------------------------------------------------------
+    const OPERATORS = ['==', '!=', '>', '<', '>=', '<='];
+
+    function buildVariableOptions(selectedName) {
+      let opts = '<option value="">— Pilih Variabel —</option>';
+      allVariables.forEach(v => {
+        const sel = v.name === selectedName ? ' selected' : '';
+        opts += `<option value="${escHtml(v.name)}"${sel}>${escHtml(v.name)}</option>`;
+      });
+      return opts;
+    }
+
+    function buildOperatorOptions(selectedOp) {
+      return OPERATORS.map(op => {
+        const sel = op === selectedOp ? ' selected' : '';
+        return `<option value="${escHtml(op)}"${sel}>${escHtml(op)}</option>`;
+      }).join('');
+    }
+
+    /**
+     * Adds a new condition row to #conditions-container.
+     * @param {string} variable_name  – pre-selected variable name (default '')
+     * @param {string} operator       – pre-selected operator (default '==')
+     * @param {string} target_value   – pre-filled target value (default '')
+     */
+    function addConditionRow(variable_name = '', operator = '==', target_value = '') {
+      const container = document.getElementById('conditions-container');
+
+      const row = document.createElement('div');
+      row.className = 'condition-row';
+      row.innerHTML = `
+        <select class="select-variable" aria-label="Pilih variabel">
+          ${buildVariableOptions(variable_name)}
+        </select>
+        <select class="select-operator" aria-label="Pilih operator">
+          ${buildOperatorOptions(operator)}
+        </select>
+        <input
+          type="text"
+          class="input-value"
+          placeholder="Nilai target"
+          value="${escHtml(target_value)}"
+          aria-label="Nilai target"
+        />
+        <button
+          type="button"
+          class="remove-btn"
+          onclick="removeConditionRow(this)"
+          aria-label="Hapus kondisi"
+        >✕</button>
+      `;
+
+      container.appendChild(row);
+    }
+
+    function removeConditionRow(btn) {
+      btn.closest('.condition-row').remove();
+    }
+
+    /**
+     * Reads all condition rows and returns an array of objects.
+     * Rows where variable_name is empty are skipped.
+     */
+    function getConditionsFromForm() {
+      const rows = document.querySelectorAll('#conditions-container .condition-row');
+      const conditions = [];
+      rows.forEach(row => {
+        const variable_name = row.querySelector('.select-variable').value.trim();
+        const operator      = row.querySelector('.select-operator').value;
+        const target_value  = row.querySelector('.input-value').value.trim();
+        if (variable_name) {
+          conditions.push({ variable_name, operator, target_value });
+        }
+      });
+      return conditions;
+    }
+
+    // -----------------------------------------------------------------------
     // Render helpers
     // -----------------------------------------------------------------------
+    function renderConditionPills(conditions) {
+      if (!conditions || conditions.length === 0) {
+        return '<span class="no-conditions-label">Tidak ada kondisi</span>';
+      }
+      return conditions.map((c, i) => {
+        const pill = `<span class="condition-pill">${escHtml(c.variable_name)} ${escHtml(c.operator)} ${escHtml(c.target_value)}</span>`;
+        if (i < conditions.length - 1) {
+          return pill + '<span class="condition-and-sep">AND</span>';
+        }
+        return pill;
+      }).join('');
+    }
+
     function renderTimeline() {
       const list  = document.getElementById('timeline-list');
       const empty = document.getElementById('empty-state');
@@ -369,7 +608,9 @@
               <span class="timeline-event-name">${escHtml(ev.event_name)}</span>
               <div class="timeline-meta">
                 <span class="location-badge">📍 ${escHtml(ev.location)}</span>
-                <span class="trigger-text">${escHtml(ev.trigger_condition)}</span>
+              </div>
+              <div class="conditions-display">
+                ${renderConditionPills(ev.conditions)}
               </div>
             </div>
             <div class="timeline-actions">
@@ -407,18 +648,32 @@
         updateStats();
         renderTimeline();
       } catch (err) {
-        showToast('Gagal memuat data: ' + err.message, 'error');
+        showToast('Gagal memuat data event: ' + err.message, 'error');
+      }
+    }
+
+    async function loadVariables() {
+      try {
+        allVariables = await apiFetch('/api/variables');
+      } catch (err) {
+        showToast('Gagal memuat variabel: ' + err.message, 'error');
       }
     }
 
     // -----------------------------------------------------------------------
     // Modal
     // -----------------------------------------------------------------------
+    function resetConditionsContainer() {
+      document.getElementById('conditions-container').innerHTML = '';
+    }
+
     function openModal() {
       document.getElementById('modal-heading').textContent   = 'Tambah Event';
       document.getElementById('form-submit-btn').textContent = 'Simpan';
       document.getElementById('form-event-id').value         = '';
       document.getElementById('event-form').reset();
+      resetConditionsContainer();
+      addConditionRow(); // start with one empty row
       document.getElementById('modal-overlay').classList.add('open');
       document.getElementById('form-event-name').focus();
     }
@@ -432,7 +687,14 @@
       document.getElementById('form-event-id').value         = ev.id;
       document.getElementById('form-event-name').value       = ev.event_name;
       document.getElementById('form-location').value         = ev.location;
-      document.getElementById('form-trigger').value          = ev.trigger_condition;
+
+      resetConditionsContainer();
+      const conditions = ev.conditions || [];
+      if (conditions.length > 0) {
+        conditions.forEach(c => addConditionRow(c.variable_name, c.operator, c.target_value));
+      } else {
+        addConditionRow(); // at least one empty row
+      }
 
       document.getElementById('modal-overlay').classList.add('open');
       document.getElementById('form-event-name').focus();
@@ -458,13 +720,13 @@
     async function handleFormSubmit(e) {
       e.preventDefault();
 
-      const event_name        = document.getElementById('form-event-name').value.trim();
-      const location          = document.getElementById('form-location').value.trim();
-      const trigger_condition = document.getElementById('form-trigger').value.trim();
-      const id                = document.getElementById('form-event-id').value;
+      const event_name = document.getElementById('form-event-name').value.trim();
+      const location   = document.getElementById('form-location').value.trim();
+      const id         = document.getElementById('form-event-id').value;
+      const conditions = getConditionsFromForm();
 
-      if (!event_name || !location || !trigger_condition) {
-        showToast('Semua field wajib diisi.', 'error');
+      if (!event_name || !location) {
+        showToast('Nama Event dan Lokasi wajib diisi.', 'error');
         return;
       }
 
@@ -475,13 +737,13 @@
         if (id) {
           await apiFetch(`/api/events/${id}`, {
             method: 'PUT',
-            body: JSON.stringify({ event_name, location, trigger_condition }),
+            body: JSON.stringify({ event_name, location, conditions }),
           });
           showToast(`Event "${event_name}" berhasil diperbarui.`, 'success');
         } else {
           await apiFetch('/api/events', {
             method: 'POST',
-            body: JSON.stringify({ event_name, location, trigger_condition }),
+            body: JSON.stringify({ event_name, location, conditions }),
           });
           showToast(`Event "${event_name}" berhasil ditambahkan.`, 'success');
         }
@@ -524,7 +786,12 @@
     // -----------------------------------------------------------------------
     // Init
     // -----------------------------------------------------------------------
-    loadEvents();
+    async function init() {
+      await loadVariables(); // load variables first so dropdowns are populated
+      await loadEvents();
+    }
+
+    init();
   </script>
 
 </body>

@@ -25,6 +25,18 @@ Tabel `GameEvent`:
 - location (String)
 - trigger_condition (String)
 
+## Update Tabel `GameEvent`
+- Hapus kolom `trigger_condition` yang lama (teks biasa).
+- Buat tabel relasi baru bernama `EventCondition`:
+  - id (Integer, Primary Key)
+  - event_id (Integer, Foreign Key ke GameEvent)
+  - variable_name (String, merujuk ke nama GameVariable)
+  - operator (String)
+  - target_value (String)
+
+## Update Export JSON
+- Pada endpoint `/api/export`, pastikan struktur JSON untuk setiap "game_events" memiliki array "conditions" yang berisi daftar syarat pemicu dari tabel `EventCondition`.
+
 ## Tambahan Struktur Database untuk Variabel
 Tabel `GameVariable`:
 - id (Integer, Primary Key)

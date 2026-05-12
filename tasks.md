@@ -17,3 +17,7 @@
 - [x] Task 15: Buat endpoint backend (GET, POST, PUT, DELETE) di `app.py` untuk mengelola tabel `GameVariable`.
 - [x] Task 16: Buat halaman antarmuka `templates/variables.html` dengan tema gelap, dan aktifkan link-nya di sidebar kiri.
 - [x] Task 17: Modifikasi fungsi di endpoint `/api/export` agar data dari tabel `GameVariable` ikut dimasukkan ke dalam file JSON yang diunduh.
+- [x] Task 18: Update skema database di `database.py` untuk mengakomodasi tabel `EventCondition` dan menghapus kolom trigger lama di `GameEvent`.
+- [x] Task 19: Perbarui logika CRUD backend di `app.py` untuk halaman Event agar bisa menyimpan banyak kondisi sekaligus.
+- [x] Task 20: Rombak antarmuka `templates/events.html`. Buat tombol "Tambah Kondisi" agar pengguna bisa menyusun syarat variabel secara dinamis (berupa baris dropdown).
+- [x] Task 21: Update endpoint `/api/export` agar relasi kondisi ini masuk ke dalam file JSON secara terstruktur.
